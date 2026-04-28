@@ -1,0 +1,37 @@
+const FOLDER_ID = "ใส่ของคุณตรงนี้";
+
+function doPost(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DATA");
+  const data = JSON.parse(e.postData.contents);
+
+  let imageUrl = "";
+
+  // 📸 ถ้ามีรูป → บันทึกลง Drive
+  if (data.imageBase64) {
+    const blob = Utilities.newBlob(
+      Utilities.base64Decode(data.imageBase64),
+      "image/jpeg",
+      "pm_" + new Date().getTime() + ".jpg"
+    );
+
+    const file = DriveApp.getFolderById(FOLDER_ID).createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    imageUrl = file.getUrl();
+  }
+
+  const rows = data.records.map(r => [
+    new Date(),
+    data.user,
+    data.machine,
+    r.group,
+    r.item,
+    r.result,
+    data.note || "",
+    imageUrl
+  ]);
+
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length)
+       .setValues(rows);
+
+  return ContentService.createTextOutput("success");
+}

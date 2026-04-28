@@ -1,0 +1,128 @@
+machines.json<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PM Check</title>
+</head>
+<body>
+
+<h2 id="machineTitle"></h2>
+
+ชื่อผู้ตรวจ: <input type="text" id="user"><br><br>
+
+<div id="form"></div>
+
+หมายเหตุ:<br>
+<textarea id="note"></textarea><br><br>
+
+รูปภาพ: <input type="file" id="image"><br><br>
+
+<button onclick="submitData()">Submit</button>
+
+<script>
+const dropdownOptions = ["ปกติ","ไม่ปกติ","ไม่ปกติแต่ใช้งานได้","ไม่ได้ใช้งาน"];
+
+const urlParams = new URLSearchParams(window.location.search);
+const machineId = urlParams.get("machine_id");
+
+let machineData = null;
+
+// โหลด JSON
+fetch("machines.json")
+.then(res => res.json())
+.then(data => {
+  machineData = data[machineId];
+
+  if (!machineData) {
+    document.body.innerHTML = "ไม่พบเครื่อง";
+    return;
+  }
+
+  document.getElementById("machineTitle").innerText =
+    machineId + " - " + machineData.name;
+
+  const formDiv = document.getElementById("form");
+
+  machineData.checklist.forEach(group => {
+    const g = document.createElement("div");
+    g.innerHTML = `<h3>${group.group}</h3>`;
+
+    group.items.forEach(item => {
+      const select = document.createElement("select");
+
+      dropdownOptions.forEach(opt => {
+        const o = document.createElement("option");
+        o.value = opt;
+        o.text = opt;
+        select.appendChild(o);
+      });
+
+      select.dataset.group = group.group;
+      select.dataset.item = item;
+
+      const row = document.createElement("div");
+      row.innerText = item + " ";
+      row.appendChild(select);
+
+      g.appendChild(row);
+    });
+
+    formDiv.appendChild(g);
+  });
+});
+
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      resolve(reader.result.split(',')[1]);
+    };
+    reader.onerror = error => reject(error);
+  });
+}
+
+async function submitData() {
+  const user = document.getElementById("user").value;
+  if (!user) {
+    alert("กรุณาใส่ชื่อ");
+    return;
+  }
+
+  const selects = document.querySelectorAll("select");
+
+  const records = [];
+  selects.forEach(s => {
+    records.push({
+      group: s.dataset.group,
+      item: s.dataset.item,
+      result: s.value
+    });
+  });
+
+  let imageBase64 = "";
+
+  const file = document.getElementById("image").files[0];
+  if (file) {
+    imageBase64 = await toBase64(file);
+  }
+
+  fetch("YOUR_SCRIPT_URL", {
+    method: "POST",
+    body: JSON.stringify({
+      user: user,
+      machine: machineId,
+      note: document.getElementById("note").value,
+      imageBase64: imageBase64,
+      records: records
+    })
+  })
+  .then(() => {
+    alert("บันทึกสำเร็จ");
+    location.reload();
+  });
+}
+</script>
+
+</body>
+</html>
